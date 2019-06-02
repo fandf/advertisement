@@ -12,20 +12,8 @@ object AreaAnalyseRpt {
 
   def main(args: Array[String]): Unit = {
     //0.校验参数个数
-    if(args.length != 2){
-      println(
-        """
-          |cn.dmp.report.ProCityRptSpark
-          |参数：
-          | logInputPath
-          | resultOutputPath
-        """.stripMargin
-      )
-      sys.exit()
-    }
-    //1.接收程序参数
-    val Array(logInputPath, resultOutputPath) = args
-
+    val logInputPath = "C:\\Users\\feng\\Desktop\\广告数据\\输出"
+    val resultOutputPath = "C:\\Users\\feng\\Desktop\\广告数据\\appAnalyseRedis"
     //2.创建sparkConf=>sparkContext
     val sparkConf = new  SparkConf()
     sparkConf.setAppName(s"${this.getClass.getSimpleName}")
