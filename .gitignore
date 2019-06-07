@@ -86,3 +86,4 @@ src/main/java/
 src/test/
 target/classes/application.conf
 target/generated-sources/
+target/.scala_dependencies

@@ -1,5 +1,8 @@
 package cn.dmp.utils
 
+import java.text.SimpleDateFormat
+import java.util.Date
+
 import org.apache.spark.sql.Row
 
 import scala.collection.mutable.ListBuffer
@@ -35,5 +38,10 @@ object TagsUtils {
 
     userIds
   }
-
+  def getNowDate():String={
+    var now:Date = new Date()
+    var  dateFormat:SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd")
+    var hehe = dateFormat.format( now )
+    hehe
+  }
 }
