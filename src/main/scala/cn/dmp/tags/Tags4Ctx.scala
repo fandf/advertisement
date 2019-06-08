@@ -3,7 +3,7 @@ package cn.dmp.tags
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import cn.dmp.utils.TagsUtils
+import cn.dmp.utils.{JedisPools, TagsUtils}
 import com.typesafe.config.ConfigFactory
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.{HColumnDescriptor, HTableDescriptor, TableName}
@@ -49,7 +49,7 @@ object Tags4Ctx extends App {
   val broadcastStopWords = sc.broadcast(stopWordsMap)
 
   //判断hbase表是否存在，不存在则创建
-  val load = ConfigFactory.load()
+ /* val load = ConfigFactory.load()
   val hbTableName = load.getString("hbase.table.name")
   val configuration: Configuration = sc.hadoopConfiguration
   configuration.set("hbase.zookeeper.quorum", load.getString("hbase.zookeeper.host"))
@@ -67,37 +67,48 @@ object Tags4Ctx extends App {
     //释放连接
     hbaseAdmin.close()
     hbConn.close()
-  }
+  }*/
 
 
   //指定key输出的类型
-  val jobConf = new JobConf(configuration)
+  /*val jobConf = new JobConf(configuration)
   jobConf.setOutputFormat(classOf[TableOutputFormat])
   //表名称
-  jobConf.set(TableOutputFormat.OUTPUT_TABLE, hbTableName)
+  jobConf.set(TableOutputFormat.OUTPUT_TABLE, hbTableName)*/
 
     sqlContext.read.parquet(logInputPath).where(TagsUtils.hasSomeUserIdCondition)
-    .map(row => {
-    //行数据进行标签化处理
-    val ads = Tags4Ads.makeTags(row)
-    val apps = Tags4App.makeTags(row, broadcast.value)
-    val devices = TagsDevices.makeTags(row)
-    val keyWords = Tags4KeyWords.makeTags(row, broadcastStopWords.value)
-    val allUserId = TagsUtils.getAllUserId(row)
-    (allUserId(0), (ads ++ apps ++ devices ++ keyWords).toList)
-  }).reduceByKey((a, b) => {
+    .mapPartitions(par => {
+      val jedis = JedisPools.getJedis()
+      val listBuffer = new collection.mutable.ListBuffer[(String, List[(String, Int)])]()
+      par.foreach(row => {
+        //行数据进行标签化处理
+        val ads = Tags4Ads.makeTags(row)
+        val apps = Tags4App.makeTags(row, broadcast.value)
+        val devices = TagsDevices.makeTags(row)
+        val keyWords = Tags4KeyWords.makeTags(row, broadcastStopWords.value)
+
+        //加入商圈标签
+        val bussiness = Tags4Bussiness.makeTags(row, jedis)
+
+        val allUserId = TagsUtils.getAllUserId(row)
+        listBuffer.append((allUserId(0), (ads ++ apps ++ devices ++ keyWords ++ bussiness).toList))
+      })
+      jedis.close()
+      listBuffer.toIterator
+    }).reduceByKey((a, b) => {
     (a ++ b).groupBy(_._1).map{
       case (k, sameTags) => (k, sameTags.map(_._2).sum)
     }.toList
-  }).map{
+  })/*.map{
     case (userId, userTags) => {
       val put = new Put(Bytes.toBytes(userId))
       val tags = userTags.map(t => t._1 + ":" + t._2).mkString(",")
       put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes(day), Bytes.toBytes(tags))
       (new ImmutableBytesWritable(), put)
     }
-  }.saveAsHadoopDataset(jobConf)
-//    .saveAsTextFile(resultOutputPath)
+  }*/
+//      .saveAsHadoopDataset(jobConf)
+    .saveAsTextFile(resultOutputPath)
 
 
   sc.stop()
