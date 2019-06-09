@@ -91,7 +91,9 @@ object Tags4Ctx extends App {
         val bussiness = Tags4Bussiness.makeTags(row, jedis)
 
         val allUserId = TagsUtils.getAllUserId(row)
-        listBuffer.append((allUserId(0), (ads ++ apps ++ devices ++ keyWords ++ bussiness).toList))
+        val otherUserId = allUserId.slice(1, allUserId.length).map(uId => (uId, 0)).toMap
+
+        listBuffer.append((allUserId(0), (ads ++ apps ++ devices ++ keyWords ++ bussiness ++ otherUserId).toList))
       })
       jedis.close()
       listBuffer.toIterator
